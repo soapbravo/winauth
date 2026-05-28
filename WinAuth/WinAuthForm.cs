@@ -814,9 +814,22 @@ namespace WinAuth
 			// set up list
 			authenticatorList.Items.Clear();
 
+			string filter = string.Empty;
+			if (this.searchBox != null)
+			{
+				filter = this.searchBox.Text.Trim();
+			}
+
 			int index = 0;
 			foreach (var auth in Config)
 			{
+				// if we have a filter and it doesn't match the auth name, skip
+				if (string.IsNullOrEmpty(filter) == false && auth.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+				{
+					index++;
+					continue;
+				}
+
 				var ali = new AuthenticatorListitem(auth, index);
 				if (added != null && added == auth && auth.AutoRefresh == false && !(auth.AuthenticatorData is HOTPAuthenticator))
 				{
@@ -828,6 +841,11 @@ namespace WinAuth
 			}
 
 			authenticatorList.Visible = (authenticatorList.Items.Count != 0);
+		}
+
+		private void searchBox_TextChanged(object sender, EventArgs e)
+		{
+			loadAuthenticatorList();
 		}
 
 		/// <summary>
