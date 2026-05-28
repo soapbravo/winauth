@@ -459,6 +459,10 @@ namespace WinAuth
 		/// </summary>
 		public override void Sync()
 		{
+			if (true) {
+				return;
+			}
+
 			// check if data is protected
 			if (this.SecretKey == null && this.EncryptedData != null)
 			{

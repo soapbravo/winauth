@@ -688,11 +688,10 @@ namespace WinAuth
 			{
 				Updater = new WinAuthUpdater(this.Config);
 
-				// the very first time, we set it to update each time
-				if (Updater.LastCheck == DateTime.MinValue)
-				{
-					Updater.SetUpdateInterval(new TimeSpan(0, 0, 0));
-				}
+				// Do not enable automatic update checks by default. Only start the
+				// AutoCheck thread when the updater has an autocheck interval set.
+				// (Previously the code enabled autocheck on first run by setting the
+				// interval to zero which caused network checks during startup.)
 				if (Updater.IsAutoCheck == true)
 				{
 					Version latest = Updater.LastKnownLatestVersion;
@@ -701,9 +700,9 @@ namespace WinAuth
 						newVersionLink.Text = "New version " + latest + " available";
 						newVersionLink.Visible = true;
 					}
+					// spin up the autocheck thread and assign callback
+					Updater.AutoCheck(NewVersionAvailable);
 				}
-				// spin up the autocheck thread and assign callback
-				Updater.AutoCheck(NewVersionAvailable);
 			}
 
 			// set up list
