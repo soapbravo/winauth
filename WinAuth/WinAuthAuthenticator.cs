@@ -401,54 +401,42 @@ namespace WinAuth
         code = this.CurrentCode;
       }
 
-      bool clipRetry = false;
-      do
+      // Ensure clipboard operations run on the UI thread
+      if (form != null && form.InvokeRequired)
       {
-        bool failed = false;
-        // check if the clipboard is locked
-        IntPtr hWnd = WinAPI.GetOpenClipboardWindow();
-        if (hWnd != IntPtr.Zero)
-        {
-          int len = WinAPI.GetWindowTextLength(hWnd);
-          if (len == 0)
-          {
-            WinAuthMain.LogException(new ApplicationException("Clipboard in use by another process"));
-          }
-          else
-          {
-            StringBuilder sb = new StringBuilder(len + 1);
-            WinAPI.GetWindowText(hWnd, sb, sb.Capacity);
-            WinAuthMain.LogException(new ApplicationException("Clipboard in use by '" + sb.ToString() + "'"));
-          }
+        form.Invoke((MethodInvoker)delegate { CopyCodeToClipboard(form, code, showError); });
+        return;
+      }
 
-          failed = true;
+      const int maxAttempts = 8;
+      const int delayMs = 150;
+
+      for (int attempt = 0; attempt < maxAttempts; attempt++)
+      {
+        try
+        {
+          // Clear then set text — simpler and more reliable for plain strings
+          Clipboard.Clear();
+          Clipboard.SetText(code ?? string.Empty);
+          return;
         }
-        else
+        catch (ExternalException)
         {
-          // Issue#170: can still get error copying even though it works, so just increase retries and ignore error
-          try
-          {
-            Clipboard.Clear();
-
-            // add delay for clip error
-            System.Threading.Thread.Sleep(100);
-
-            Clipboard.SetDataObject(code, true, 4, 250);
-          }
-          catch (ExternalException)
-          {
-          }
+          // clipboard in use, wait and retry
+          System.Threading.Thread.Sleep(delayMs);
         }
-
-        if (failed == true && showError == true)
+        catch (Exception ex)
         {
-          // only show an error the first time
-          clipRetry = (MessageBox.Show(form, strings.ClipboardInUse,
-              WinAuthMain.APPLICATION_NAME,
-              MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes);
+          // unexpected error, log and stop retrying
+          WinAuthMain.LogException(ex);
+          break;
         }
       }
-      while (clipRetry == true);
+
+      if (showError && form != null)
+      {
+        MessageBox.Show(form, strings.ClipboardInUse, WinAuthMain.APPLICATION_NAME, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+      }
     }
 
     public bool ReadXml(XmlReader reader, string password)
